@@ -45,9 +45,11 @@ userRouter.post("/signup", async (req, res) => {
     const verificationToken = jwt.sign({ userId: user._id }, process.env.jwt_secret, {
       expiresIn: "1h", // Token expires in 1 hour
     });
+    
 
     // Send verification email
     const verificationLink = `https://app-database.onrender.com/user/verify/${verificationToken}`;
+    console.log(verificationLink)
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
@@ -55,7 +57,7 @@ userRouter.post("/signup", async (req, res) => {
       html: `
         <h3>Welcome, ${username}!</h3>
         <p>Click the link below to verify your email:</p>
-        <a href="${verificationLink}">${verificationLink}</a>
+        <a href="${verificationLink}">verify</a>
         <p>This link will expire in 1 hour.</p>
       `,
     });
@@ -76,7 +78,6 @@ userRouter.get("/verify/:token", async (req, res) => {
 
     // Decode and verify the token
     const decoded = jwt.verify(token, process.env.jwt_secret);
-    console.log("Decoded Token:", decoded);
 
     const userId = decoded.userId;
 
@@ -114,6 +115,7 @@ userRouter.post("/login", async (req, res) => {
 
     // Check if email is verified
     if (!isUserPresent.isVerified) {
+      console.log(isUserPresent)
       return res.send({ msg: "Please verify your email before logging in" });
     }
 
@@ -124,9 +126,7 @@ userRouter.post("/login", async (req, res) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: isUserPresent._id }, process.env.jwt_secret, {
-      expiresIn: "4h",
-    });
+    const token = jwt.sign({ userId: isUserPresent._id }, process.env.jwt_secret);
 
     res.send({
       status: "ok",

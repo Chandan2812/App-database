@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { UserModel } = require("../model/user.model");
+require("dotenv").config();
 
 const userRouter = express.Router();
 
@@ -46,7 +47,7 @@ userRouter.post("/signup", async (req, res) => {
     });
 
     // Send verification email
-    const verificationLink = `http://localhost:8080/verify/${verificationToken}`;
+    const verificationLink = `https://app-database.onrender.com/user/verify/${verificationToken}`;
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
@@ -73,11 +74,13 @@ userRouter.get("/verify/:token", async (req, res) => {
   try {
     const { token } = req.params;
 
-    // Verify the token
+    // Decode and verify the token
     const decoded = jwt.verify(token, process.env.jwt_secret);
+    console.log("Decoded Token:", decoded);
+
     const userId = decoded.userId;
 
-    // Update user's isVerified field
+    // Find and verify the user
     const user = await UserModel.findById(userId);
     if (!user) {
       return res.status(404).send({ msg: "User not found" });
@@ -90,11 +93,13 @@ userRouter.get("/verify/:token", async (req, res) => {
     user.isVerified = true;
     await user.save();
 
-    res.send({ status: "ok", msg: "Email verified successfully!" });
+    res.send({ msg: "Email verified successfully!" });
   } catch (error) {
+    console.error("Verification Error:", error.message);
     res.status(400).send({ msg: "Invalid or expired token", error: error.message });
   }
 });
+
 
 // Route: Login with Email Verification Check
 userRouter.post("/login", async (req, res) => {

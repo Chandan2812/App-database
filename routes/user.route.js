@@ -119,7 +119,6 @@ userRouter.post("/login", async (req, res) => {
 
     // Check if email is verified
     if (!isUserPresent.isVerified) {
-      console.log(isUserPresent);
       return res.send({ msg: "Please verify your email before logging in" });
     }
 

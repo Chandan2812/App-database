@@ -42,14 +42,17 @@ userRouter.post("/signup", async (req, res) => {
     await user.save();
 
     // Generate verification token
-    const verificationToken = jwt.sign({ userId: user._id }, process.env.jwt_secret, {
-      expiresIn: "1h", // Token expires in 1 hour
-    });
-    
+    const verificationToken = jwt.sign(
+      { userId: user._id },
+      process.env.jwt_secret,
+      {
+        expiresIn: "1h", // Token expires in 1 hour
+      }
+    );
 
     // Send verification email
     const verificationLink = `https://app-database.onrender.com/user/verify/${verificationToken}`;
-    console.log(verificationLink)
+    console.log(verificationLink);
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
@@ -97,10 +100,11 @@ userRouter.get("/verify/:token", async (req, res) => {
     res.send({ msg: "Email verified successfully!" });
   } catch (error) {
     console.error("Verification Error:", error.message);
-    res.status(400).send({ msg: "Invalid or expired token", error: error.message });
+    res
+      .status(400)
+      .send({ msg: "Invalid or expired token", error: error.message });
   }
 });
-
 
 // Route: Login with Email Verification Check
 userRouter.post("/login", async (req, res) => {
@@ -115,18 +119,24 @@ userRouter.post("/login", async (req, res) => {
 
     // Check if email is verified
     if (!isUserPresent.isVerified) {
-      console.log(isUserPresent)
+      console.log(isUserPresent);
       return res.send({ msg: "Please verify your email before logging in" });
     }
 
     // Check password
-    const isPasswordMatch = bcrypt.compareSync(password, isUserPresent.password);
+    const isPasswordMatch = bcrypt.compareSync(
+      password,
+      isUserPresent.password
+    );
     if (!isPasswordMatch) {
       return res.send({ msg: "Wrong credentials" });
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: isUserPresent._id }, process.env.jwt_secret);
+    const token = jwt.sign(
+      { userId: isUserPresent._id },
+      process.env.jwt_secret
+    );
 
     res.send({
       status: "ok",
@@ -149,6 +159,64 @@ userRouter.get("/", async (req, res) => {
       message: "An error occurred while fetching users.",
       error: error.message,
     });
+  }
+});
+
+// Route: Forgot Password
+userRouter.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ msg: "User not found" });
+    }
+
+    const resetToken = jwt.sign({ userId: user._id }, process.env.jwt_secret, {
+      expiresIn: "1h",
+    });
+
+    const resetLink = `https://app-database.onrender.com/user/reset-password/${resetToken}`;
+    await transporter.sendMail({
+      from: process.env.EMAIL,
+      to: email,
+      subject: "Reset Your Password",
+      html: `
+        <h3>Hello, ${user.username}!</h3>
+        <p>Click the link below to reset your password:</p>
+        <a href="${resetLink}">Reset Password</a>
+        <p>This link will expire in 1 hour.</p>
+      `,
+    });
+
+    res.send({ status: "ok", msg: "Password reset link sent to your email" });
+  } catch (error) {
+    res.status(500).send({ msg: "Something went wrong", error: error.message });
+  }
+});
+
+// Route: Reset Password
+userRouter.post("/reset-password/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    const decoded = jwt.verify(token, process.env.jwt_secret);
+    const user = await UserModel.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(404).send({ msg: "User not found" });
+    }
+
+    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.send({ status: "ok", msg: "Password reset successfully" });
+  } catch (error) {
+    res
+      .status(400)
+      .send({ msg: "Invalid or expired token", error: error.message });
   }
 });
 

@@ -167,56 +167,100 @@ userRouter.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
 
+    // Find the user by email
     const user = await UserModel.findOne({ email });
     if (!user) {
       return res.status(404).send({ msg: "User not found" });
     }
 
-    const resetToken = jwt.sign({ userId: user._id }, process.env.jwt_secret, {
-      expiresIn: "1h",
-    });
+    // Generate a random 6-digit number as a reset code
+    const resetCode = Math.floor(100000 + Math.random() * 900000);
 
-    const resetLink = `https://app-database.onrender.com/user/reset-password/${resetToken}`;
+    // Save the reset code and its expiration (e.g., 1 hour)
+    user.resetCode = resetCode;
+    user.resetCodeExpiry = Date.now() + 60 * 60 * 1000; // 1 hour expiration
+    await user.save();
+
+    // Send the reset code via email
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,
       subject: "Reset Your Password",
       html: `
         <h3>Hello, ${user.username}!</h3>
-        <p>Click the link below to reset your password:</p>
-        <a href="${resetLink}">Reset Password</a>
-        <p>This link will expire in 1 hour.</p>
+        <p>Use the following code to reset your password:</p>
+        <p><strong>${resetCode}</strong></p>
+        <p>This code will expire in 1 hour.</p>
       `,
     });
 
-    res.send({ status: "ok", msg: "Password reset link sent to your email" });
+    res.send({ status: "ok", msg: "Password reset code sent to your email" });
+  } catch (error) {
+    res.status(500).send({ msg: "Something went wrong", error: error.message });
+  }
+});
+
+// Route: Verify Reset Code
+userRouter.post("/verify-reset-code", async (req, res) => {
+  try {
+    const { email, resetCode } = req.body;
+
+    // Find the user by email
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(404).send({ msg: "User not found" });
+    }
+
+    // Check if the reset code exists and is not expired
+    if (user.resetCode !== resetCode) {
+      return res.status(400).send({ msg: "Invalid reset code" });
+    }
+
+    if (Date.now() > user.resetCodeExpiry) {
+      return res.status(400).send({ msg: "Reset code has expired" });
+    }
+
+    // If valid, send a success response
+    res.send({ status: "ok", msg: "Reset code verified successfully" });
   } catch (error) {
     res.status(500).send({ msg: "Something went wrong", error: error.message });
   }
 });
 
 // Route: Reset Password
-userRouter.post("/reset-password/:token", async (req, res) => {
+userRouter.post("/reset-password", async (req, res) => {
   try {
-    const { token } = req.params;
-    const { newPassword } = req.body;
+    const { email, newPassword, confirmPassword } = req.body;
 
-    const decoded = jwt.verify(token, process.env.jwt_secret);
-    const user = await UserModel.findById(decoded.userId);
+    // Validate the password and confirmation
+    if (newPassword !== confirmPassword) {
+      return res.status(400).send({ msg: "Passwords do not match" });
+    }
 
+    // Find the user by email
+    const user = await UserModel.findOne({ email });
     if (!user) {
       return res.status(404).send({ msg: "User not found" });
     }
 
+    // Check if the reset code has expired
+    if (Date.now() > user.resetCodeExpiry) {
+      return res.status(400).send({ msg: "Reset code has expired" });
+    }
+
+    // Hash the new password before saving
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
     user.password = hashedPassword;
+
+    // Clear reset code and expiry
+    user.resetCode = undefined;
+    user.resetCodeExpiry = undefined;
+
     await user.save();
 
     res.send({ status: "ok", msg: "Password reset successfully" });
   } catch (error) {
-    res
-      .status(400)
-      .send({ msg: "Invalid or expired token", error: error.message });
+    res.status(500).send({ msg: "Something went wrong", error: error.message });
   }
 });
 

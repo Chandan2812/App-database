@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+require("dotenv").config()
+
 
 const verifyClerkWebhook = (req, res, next) => {
   const signingSecret = process.env.CLERK_WEBHOOK_SECRET; // Set in .env file

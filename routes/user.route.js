@@ -3,7 +3,10 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { UserModel } = require("../model/user.model");
+const verifyClerkWebhook = require("../utils/verifyClerkWebhook");
+
 require("dotenv").config();
+
 
 const userRouter = express.Router();
 
@@ -260,6 +263,54 @@ userRouter.post("/reset-password", async (req, res) => {
     res.send({ status: "ok", msg: "Password reset successfully" });
   } catch (error) {
     res.status(500).send({ msg: "Something went wrong", error: error.message });
+  }
+});
+
+// Clerk Webhook endpoint
+userRouter.post('/api/clerk-webhook',verifyClerkWebhook, async (req, res) => {
+  const { type, data } = req.body;
+
+  try {
+    if (type === "user.created") {
+      const { id, email_addresses, first_name, last_name } = data;
+
+      // Check if user already exists
+      const email = email_addresses[0]?.email_address;
+      const isVerified = email_addresses[0]?.verification?.status === "verified";
+
+      const existingUser = await UserModel.findOne({ email });
+
+      if (!existingUser) {
+        // Create a new user
+        const newUser = new UserModel({
+          clerkId: id,
+          email,
+          username: `${first_name} ${last_name}`.trim(),
+          isVerified,
+        });
+
+        await newUser.save();
+        console.log("New user created:", newUser);
+      }
+    } else if (type === "user.signed_in") {
+      const { id } = data;
+
+      // Update last login time
+      const user = await UserModel.findOneAndUpdate(
+        { clerkId: id },
+        { lastLogin: new Date() },
+        { new: true }
+      );
+
+      if (user) {
+        console.log(`User ${id} logged in. Last login updated.`);
+      }
+    }
+
+    res.status(200).send("Webhook processed successfully");
+  } catch (error) {
+    console.error("Error handling webhook:", error);
+    res.status(500).send("Error processing webhook");
   }
 });
 

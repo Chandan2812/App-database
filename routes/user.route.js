@@ -273,6 +273,7 @@ userRouter.post('/api/clerk-webhook',verifyClerkWebhook, async (req, res) => {
   try {
     if (type === "user.created") {
       const { id, email_addresses, first_name, last_name } = data;
+      console.log(data)
 
       // Check if user already exists
       const email = email_addresses[0]?.email_address;

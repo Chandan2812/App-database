@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(cors());
 
 // Apply raw body middleware for Clerk webhook route
-app.use("/user/api/clerk-webhook", bodyParser.raw({ type: "application/json" }));
+// app.use("/user/api/clerk-webhook", bodyParser.raw({ type: "application/json" }));
 
 // All other routes can use express.json()
 app.use("/user", userRouter);

@@ -1,27 +1,24 @@
-const crypto = require("crypto");
-require("dotenv").config();
+const { Webhook } = require('svix');
+require('dotenv').config();
 
 const verifyClerkWebhook = (req, res, next) => {
-  const signingSecret = process.env.CLERK_WEBHOOK_SECRET; // Set in .env file
-  const signature = req.headers["clerk-signature"];
+  const signingSecret = process.env.CLERK_WEBHOOK_SECRET;
+  const signature = req.headers['clerk-signature'];
 
   if (!signingSecret || !signature) {
-    return res.status(400).send("Missing signature or secret");
+    return res.status(400).send('Missing signature or secret');
   }
 
-  // Use raw body for verification
-  const payload = req.body.toString("utf8");
+  const payload = JSON.stringify(req.body);
 
-  const expectedSignature = crypto
-    .createHmac("sha256", signingSecret)
-    .update(payload)
-    .digest("base64");
+  const webhook = new Webhook(signingSecret);
 
-  if (signature !== expectedSignature) {
-    return res.status(400).send("Invalid webhook signature");
+  try {
+    webhook.verify(signature, payload);
+    next();
+  } catch (err) {
+    return res.status(400).send('Invalid webhook signature');
   }
-
-  next();
 };
 
 module.exports = verifyClerkWebhook;

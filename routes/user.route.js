@@ -108,6 +108,9 @@ userRouter.get("/verify/:token", async (req, res) => {
 
 // Function to generate HTML response
 function generateHTML(message, type) {
+  const redirectURL =
+    type === "success" ? "Unify://login" : "Unify://signup"; // Deep link to mobile app
+
   return `
   <!DOCTYPE html>
   <html lang="en">
@@ -116,6 +119,11 @@ function generateHTML(message, type) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Email Verification</title>
       <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+          setTimeout(() => {
+              window.location.href = "${redirectURL}";
+          }, 3000); // Redirect to mobile app after 3 seconds
+      </script>
   </head>
   <body class="flex items-center justify-center min-h-screen bg-gray-100">
       <div class="bg-white p-8 shadow-lg rounded-lg max-w-sm text-center">
@@ -125,16 +133,25 @@ function generateHTML(message, type) {
               : `<svg class="w-16 h-16 mx-auto text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>`
           }
           <h2 class="text-xl font-semibold mt-4">${message}</h2>
-          ${
-            type === "success"
-              ? `<a href="https://yourfrontend.com/login" class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition">Go to Login</a>`
-              : `<a href="https://yourfrontend.com/signup" class="mt-4 inline-block px-6 py-2 bg-gray-600 text-white rounded-lg shadow-md hover:bg-gray-700 transition">Back to Signup</a>`
-          }
+          <p class="text-sm text-gray-500 mt-2">Redirecting in <span id="countdown">3</span> seconds...</p>
+          <a href="${redirectURL}" class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition">
+            Open App
+          </a>
       </div>
+
+      <script>
+          let countdown = 3;
+          const countdownEl = document.getElementById("countdown");
+          setInterval(() => {
+              countdown--;
+              if (countdownEl) countdownEl.textContent = countdown;
+          }, 1000);
+      </script>
   </body>
   </html>
   `;
 }
+
 
 // Route: Login with Email Verification Check
 userRouter.post("/login", async (req, res) => {

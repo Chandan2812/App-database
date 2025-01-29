@@ -1,4 +1,3 @@
-// UserModel.js (Mongoose schema for user)
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -11,6 +10,7 @@ const userSchema = new mongoose.Schema(
     resetCode: { type: String }, // Field to store the reset code
     resetCodeExpiry: { type: Date },
     lastLogin: { type: Date }, // Field to store the reset code expiry time
+    image: { type: String, default: "" }, // Field to store the profile image URL
   },
   { timestamps: true }
 );

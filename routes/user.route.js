@@ -84,30 +84,57 @@ userRouter.get("/verify/:token", async (req, res) => {
 
     // Decode and verify the token
     const decoded = jwt.verify(token, process.env.jwt_secret);
-
     const userId = decoded.userId;
 
-    // Find and verify the user
+    // Find the user
     const user = await UserModel.findById(userId);
     if (!user) {
-      return res.status(404).send({ msg: "User not found" });
+      return res.send(generateHTML("User not found", "error"));
     }
 
     if (user.isVerified) {
-      return res.send({ msg: "User is already verified" });
+      return res.send(generateHTML("Your email is already verified!", "success"));
     }
 
+    // Update user verification status
     user.isVerified = true;
     await user.save();
 
-    res.send({ msg: "Email verified successfully!" });
+    return res.send(generateHTML("Email verified successfully!", "success"));
   } catch (error) {
-    console.error("Verification Error:", error.message);
-    res
-      .status(400)
-      .send({ msg: "Invalid or expired token", error: error.message });
+    return res.send(generateHTML("Invalid or expired verification link.", "error"));
   }
 });
+
+// Function to generate HTML response
+function generateHTML(message, type) {
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Email Verification</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="flex items-center justify-center min-h-screen bg-gray-100">
+      <div class="bg-white p-8 shadow-lg rounded-lg max-w-sm text-center">
+          ${
+            type === "success"
+              ? `<svg class="w-16 h-16 mx-auto text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>`
+              : `<svg class="w-16 h-16 mx-auto text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>`
+          }
+          <h2 class="text-xl font-semibold mt-4">${message}</h2>
+          ${
+            type === "success"
+              ? `<a href="https://yourfrontend.com/login" class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition">Go to Login</a>`
+              : `<a href="https://yourfrontend.com/signup" class="mt-4 inline-block px-6 py-2 bg-gray-600 text-white rounded-lg shadow-md hover:bg-gray-700 transition">Back to Signup</a>`
+          }
+      </div>
+  </body>
+  </html>
+  `;
+}
 
 // Route: Login with Email Verification Check
 userRouter.post("/login", async (req, res) => {

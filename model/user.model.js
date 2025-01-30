@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
     lastLogin: { type: Date },
     nationality: { type: String, default: "" }, // New field
     phone: { type: String, default: "" }, // New field
+    image: { type: String, default: "" }, // Field to store the profile image URL
   },
   { timestamps: true }
 );

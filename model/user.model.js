@@ -1,4 +1,3 @@
-// UserModel.js (Mongoose schema for user)
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -8,9 +7,11 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     isVerified: { type: Boolean, default: false },
-    resetCode: { type: String }, // Field to store the reset code
+    resetCode: { type: String },
     resetCodeExpiry: { type: Date },
-    lastLogin: { type: Date }, // Field to store the reset code expiry time
+    lastLogin: { type: Date },
+    nationality: { type: String, default: "" }, // New field
+    phone: { type: String, default: "" }, // New field
   },
   { timestamps: true }
 );

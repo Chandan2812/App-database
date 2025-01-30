@@ -77,6 +77,35 @@ userRouter.post("/signup", async (req, res) => {
   }
 });
 
+// Route: Update Nationality and Phone After login on profile page
+userRouter.patch("/update-profile/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { nationality, phone } = req.body;
+
+    // Validate input
+    if (!nationality && !phone) {
+      return res.status(400).json({ msg: "Provide at least one field to update" });
+    }
+
+    // Find the user by ID and update the provided fields
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      { $set: { nationality, phone } },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.status(200).json({ msg: "Profile updated successfully", user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ msg: "Error updating profile", error: error.message });
+  }
+});
+
+
 // Route: Email Verification
 userRouter.get("/verify/:token", async (req, res) => {
   try {

@@ -9,7 +9,9 @@ const userSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     resetCode: { type: String },
     resetCodeExpiry: { type: Date },
-    lastLogin: { type: Date }, // Field to store the reset code expiry time
+    lastLogin: { type: Date },
+    nationality: { type: String, default: "" }, // New field
+    phone: { type: String, default: "" }, // New field
   },
   { timestamps: true }
 );

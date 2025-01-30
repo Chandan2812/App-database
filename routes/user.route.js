@@ -92,17 +92,17 @@ userRouter.post("/signup", async (req, res) => {
 userRouter.patch("/update-profile/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { nationality, phone } = req.body;
+    const { nationality, phone,Gender } = req.body;
 
     // Validate input
-    if (!nationality && !phone) {
+    if (!nationality && !phone && !Gender) {
       return res.status(400).json({ msg: "Provide at least one field to update" });
     }
 
     // Find the user by ID and update the provided fields
     const updatedUser = await UserModel.findByIdAndUpdate(
       userId,
-      { $set: { nationality, phone } },
+      { $set: { nationality, phone,Gender } },
       { new: true } // Return the updated document
     );
 

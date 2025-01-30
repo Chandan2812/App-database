@@ -4,11 +4,22 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { UserModel } = require("../model/user.model");
 const verifyClerkWebhook = require("../utils/verifyClerkWebhook");
+const multer = require("multer");
 
 require("dotenv").config();
 
-
 const userRouter = express.Router();
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
 
 // Configure Nodemailer
 const transporter = nodemailer.createTransport({
@@ -122,7 +133,9 @@ userRouter.get("/verify/:token", async (req, res) => {
     }
 
     if (user.isVerified) {
-      return res.send(generateHTML("Your email is already verified!", "success"));
+      return res.send(
+        generateHTML("Your email is already verified!", "success")
+      );
     }
 
     // Update user verification status
@@ -131,14 +144,15 @@ userRouter.get("/verify/:token", async (req, res) => {
 
     return res.send(generateHTML("Email verified successfully!", "success"));
   } catch (error) {
-    return res.send(generateHTML("Invalid or expired verification link.", "error"));
+    return res.send(
+      generateHTML("Invalid or expired verification link.", "error")
+    );
   }
 });
 
 // Function to generate HTML response
 function generateHTML(message, type) {
-  const redirectURL =
-    type === "success" ? "Unify://login" : "Unify://signup"; // Deep link to mobile app
+  const redirectURL = type === "success" ? "Unify://login" : "Unify://signup"; // Deep link to mobile app
 
   return `
   <!DOCTYPE html>
@@ -180,7 +194,6 @@ function generateHTML(message, type) {
   </html>
   `;
 }
-
 
 // Route: Login with Email Verification Check
 userRouter.post("/login", async (req, res) => {
@@ -340,17 +353,18 @@ userRouter.post("/reset-password", async (req, res) => {
 });
 
 // Clerk Webhook endpoint
-userRouter.post('/api/clerk-webhook',verifyClerkWebhook, async (req, res) => {
+userRouter.post("/api/clerk-webhook", verifyClerkWebhook, async (req, res) => {
   const { type, data } = req.body;
 
   try {
     if (type === "user.created") {
       const { id, email_addresses, first_name, last_name } = data;
-      console.log(data)
+      console.log(data);
 
       // Check if user already exists
       const email = email_addresses[0]?.email_address;
-      const isVerified = email_addresses[0]?.verification?.status === "verified";
+      const isVerified =
+        email_addresses[0]?.verification?.status === "verified";
 
       const existingUser = await UserModel.findOne({ email });
 
@@ -387,5 +401,42 @@ userRouter.post('/api/clerk-webhook',verifyClerkWebhook, async (req, res) => {
     res.status(500).send("Error processing webhook");
   }
 });
+
+userRouter.post(
+  "/upload-profile-image/:userId",
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({ error: "Please upload an image." });
+      }
+
+      // Save the image path in the database (relative URL)
+      const imageUrl = `/uploads/${req.file.filename}`;
+
+      // Update user record with the image URL
+      const updatedUser = await UserModel.findByIdAndUpdate(
+        userId,
+        { image: imageUrl },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        message: "Profile image uploaded successfully",
+        user: updatedUser,
+      });
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Internal Server Error", details: error.message });
+    }
+  }
+);
 
 module.exports = { userRouter };

@@ -92,17 +92,19 @@ userRouter.post("/signup", async (req, res) => {
 userRouter.patch("/update-profile/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { nationality, phone,Gender } = req.body;
+    const { nationality, phone, Gender } = req.body;
 
     // Validate input
     if (!nationality && !phone && !Gender) {
-      return res.status(400).json({ msg: "Provide at least one field to update" });
+      return res
+        .status(400)
+        .json({ msg: "Provide at least one field to update" });
     }
 
     // Find the user by ID and update the provided fields
     const updatedUser = await UserModel.findByIdAndUpdate(
       userId,
-      { $set: { nationality, phone,Gender } },
+      { $set: { nationality, phone, Gender } },
       { new: true } // Return the updated document
     );
 
@@ -110,12 +112,15 @@ userRouter.patch("/update-profile/:userId", async (req, res) => {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    res.status(200).json({ msg: "Profile updated successfully", user: updatedUser });
+    res
+      .status(200)
+      .json({ msg: "Profile updated successfully", user: updatedUser });
   } catch (error) {
-    res.status(500).json({ msg: "Error updating profile", error: error.message });
+    res
+      .status(500)
+      .json({ msg: "Error updating profile", error: error.message });
   }
 });
-
 
 // Route: Email Verification
 userRouter.get("/verify/:token", async (req, res) => {
@@ -402,6 +407,8 @@ userRouter.post("/api/clerk-webhook", verifyClerkWebhook, async (req, res) => {
   }
 });
 
+const SERVER_URL = "https://app-database.onrender.com"; // Replace with your actual backend URL
+
 userRouter.post(
   "/upload-profile-image/:userId",
   upload.single("image"),
@@ -413,10 +420,10 @@ userRouter.post(
         return res.status(400).json({ error: "Please upload an image." });
       }
 
-      // Save the image path in the database (relative URL)
-      const imageUrl = `/uploads/${req.file.filename}`;
+      // Construct the full image URL
+      const imageUrl = `${SERVER_URL}/uploads/${req.file.filename}`;
 
-      // Update user record with the image URL
+      // Update user record with the full image URL
       const updatedUser = await UserModel.findByIdAndUpdate(
         userId,
         { image: imageUrl },

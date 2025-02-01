@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
     clerkId: { type: String, unique: true },
     username: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    password: { type: String, required: false  },
     isVerified: { type: Boolean, default: false },
     resetCode: { type: String },
     resetCodeExpiry: { type: Date },

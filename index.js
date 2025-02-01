@@ -6,8 +6,6 @@ const bodyParser = require("body-parser"); // Import body-parser
 const path = require("path");
 const crypto = require("crypto");
 const { Webhook } = require("svix");
-const { UserModel } = require("./model/user.model");
-
 
 const PORT = 8080;
 
@@ -62,30 +60,14 @@ app.post("/clerk-webhook", async (req, res) => {
     }
 
     // Process the webhook event
-    // const { id, email_addresses } = event.data;
+    const { id, email_addresses } = event.data;
     const eventType = event.type;
 
     console.log(`Received webhook with ID ${id} and event type of ${eventType}`);
     console.log("Webhook payload:", payload);
 
-     // Extract data from Clerk Webhook
-     const { id, email_addresses, first_name, last_name, image_url, gender } = event.data;
-     const email = email_addresses?.[0]?.email_address || "";
-
     if (eventType === "user.created") {
       const userEmail = email_addresses?.[0]?.email_address || "No email provided";
-      const newUser = new UserModel({
-        clerkId: id,
-        username: `${first_name} ${last_name}`.trim(),
-        firstName: first_name || "",
-        lastName: last_name || "",
-        email: email,
-        image: image_url || "",
-        gender: gender || "",
-      });
-
-      await newUser.save();
-      console.log(`✅ User saved: ${email}`);
       console.log(`New user created: ${userEmail}`);
     }
 

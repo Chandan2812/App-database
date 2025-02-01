@@ -2,12 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const { connection } = require("./config/db");
 const { userRouter } = require("./routes/user.route");
-const bodyParser = require("body-parser"); // Import body-parser
 const path = require("path");
-const crypto = require("crypto");
 const { Webhook } = require("svix");
 const { UserModel } = require("./model/user.model");
-
 
 const PORT = 8080;
 
@@ -27,7 +24,9 @@ app.use("/user", userRouter);
 const SIGNING_SECRET = process.env.SIGNING_SECRET;
 
 if (!SIGNING_SECRET) {
-  throw new Error("Error: Please add SIGNING_SECRET from Clerk Dashboard to .env");
+  throw new Error(
+    "Error: Please add SIGNING_SECRET from Clerk Dashboard to .env"
+  );
 }
 
 app.post("/clerk-webhook", async (req, res) => {
@@ -59,7 +58,8 @@ app.post("/clerk-webhook", async (req, res) => {
     console.log("Webhook Event Data:", event.data); // ✅ Debugging
 
     // Extract user details
-    const { id, email_addresses, first_name, last_name, image_url, gender } = event.data;
+    const { id, email_addresses, first_name, last_name, image_url, gender } =
+      event.data;
     const email = email_addresses?.[0]?.email_address || "";
 
     if (event.type === "user.created") {
@@ -73,7 +73,7 @@ app.post("/clerk-webhook", async (req, res) => {
           image: event.data.image_url || "",
           gender: event.data.gender || "",
         });
-    
+
         // Save the new user and catch any errors
         await newUser.save();
         console.log(`✅ User saved: ${newUser.email}`);
@@ -81,15 +81,13 @@ app.post("/clerk-webhook", async (req, res) => {
         console.error("❌ Error saving user:", error);
       }
     }
-    
+
     res.status(200).json({ message: "Webhook received successfully" });
   } catch (error) {
     console.error("Error processing webhook:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
-
-
 
 app.listen(PORT, async () => {
   try {

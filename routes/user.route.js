@@ -89,14 +89,14 @@ userRouter.post("/signup", async (req, res) => {
 });
 
 // Route: Update Nationality and Phone After login on profile page
-userRouter.patch("/update-profile/:userId", async (req, res) => {
+userRouter.patch("/update-profile/:email", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { email } = req.params;
     const { nationality, phone, Gender } = req.body;
 
     // Find the user by ID and update the provided fields
-    const updatedUser = await UserModel.findByIdAndUpdate(
-      userId,
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { email },
       { $set: { nationality, phone, Gender } },
       { new: true } // Return the updated document
     );
@@ -403,11 +403,11 @@ userRouter.post("/api/clerk-webhook", verifyClerkWebhook, async (req, res) => {
 const SERVER_URL = "https://app-database.onrender.com"; // Replace with your actual backend URL
 
 userRouter.post(
-  "/upload-profile-image/:userId",
+  "/upload-profile-image/:email",
   upload.single("image"),
   async (req, res) => {
     try {
-      const { userId } = req.params;
+      const { email } = req.params;
 
       if (!req.file) {
         return res.status(400).json({ error: "Please upload an image." });
@@ -417,10 +417,10 @@ userRouter.post(
       const imageUrl = `${SERVER_URL}/uploads/${req.file.filename}`;
 
       // Update user record with the full image URL
-      const updatedUser = await UserModel.findByIdAndUpdate(
-        userId,
-        { image: imageUrl },
-        { new: true }
+      const updatedUser = await UserModel.findOneAndUpdate(
+        { email }, // ✅ Fix: Correct way to search by email
+        { $set: { image: imageUrl } }, // ✅ Use `$set` to update only the image field
+        { new: true } // ✅ Return the updated document
       );
 
       if (!updatedUser) {
@@ -439,12 +439,12 @@ userRouter.post(
   }
 );
 
-userRouter.get("/userdata/:userid", async (req, res) => {
+userRouter.get("/userdata/:email", async (req, res) => {
   try {
-    const { userid } = req.params;
+    const { email } = req.params;
 
     // Find user by ID and select only nationality, phone, and gender
-    const user = await UserModel.findById(userid)
+    const user = await UserModel.findOne({ email });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });

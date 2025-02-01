@@ -42,7 +42,7 @@ app.post("/clerk-webhook", async (req, res) => {
 
     const payload = req.body;
     const bodyString = JSON.stringify(payload);
-    const wh = new Webhook(process.env.SIGNING_SECRET); // ✅ Ensure it's correctly set
+    const wh = new Webhook(process.env.SIGNING_SECRET); // Ensure it's correctly set
 
     let event;
     try {
@@ -56,38 +56,58 @@ app.post("/clerk-webhook", async (req, res) => {
       return res.status(400).json({ message: "Error: Verification failed" });
     }
 
-    console.log("Webhook Event Data:", event.data); // ✅ Debugging
+    console.log("Webhook Event Data:", event.data); // Debugging
 
     // Extract user details
     const { id, email_addresses, first_name, last_name, image_url, gender } = event.data;
     const email = email_addresses?.[0]?.email_address || "";
 
-    if (event.type === "user.created") {
+    // Check if the event type is "user.created" or "user.updated"
+    if (event.type === "user.created" || event.type === "user.updated") {
       try {
-        const newUser = new UserModel({
-          clerkId: event.data.id,
-          username: `${event.data.first_name} ${event.data.last_name}`.trim(),
-          firstName: event.data.first_name || "",
-          lastName: event.data.last_name || "",
-          email: event.data.email_addresses?.[0]?.email_address || "",
-          image: event.data.image_url || "",
-          gender: event.data.gender || "",
-        });
-    
-        // Save the new user and catch any errors
-        await newUser.save();
-        console.log(`✅ User saved: ${newUser.email}`);
+        // Check if the user already exists
+        const existingUser = await UserModel.findOne({ clerkId: id });
+
+        if (existingUser) {
+          // User exists, so update the user information
+          existingUser.username = `${first_name} ${last_name}`.trim();
+          existingUser.firstName = first_name || "";
+          existingUser.lastName = last_name || "";
+          existingUser.email = email;
+          existingUser.image = image_url || "";
+          existingUser.gender = gender || "";
+
+          // Save updated user
+          await existingUser.save();
+          console.log(`✅ User updated: ${existingUser.email}`);
+        } else {
+          // User doesn't exist, create a new user
+          const newUser = new UserModel({
+            clerkId: id,
+            username: `${first_name} ${last_name}`.trim(),
+            firstName: first_name || "",
+            lastName: last_name || "",
+            email: email,
+            image: image_url || "",
+            gender: gender || "",
+          });
+
+          // Save the new user
+          await newUser.save();
+          console.log(`✅ User created: ${newUser.email}`);
+        }
       } catch (error) {
-        console.error("❌ Error saving user:", error);
+        console.error("❌ Error saving or updating user:", error);
       }
     }
-    
+
     res.status(200).json({ message: "Webhook received successfully" });
   } catch (error) {
     console.error("Error processing webhook:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 

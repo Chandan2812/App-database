@@ -63,22 +63,23 @@ app.post("/clerk-webhook", async (req, res) => {
     if (event.type === "user.created") {
       try {
         const newUser = new UserModel({
-          clerkId: id,
-          username: `${first_name} ${last_name}`.trim(),
-          firstName: first_name || "",
-          lastName: last_name || "",
-          email: email,
-          image: image_url || "",
-          gender: gender || "",
+          clerkId: event.data.id,
+          username: `${event.data.first_name} ${event.data.last_name}`.trim(),
+          firstName: event.data.first_name || "",
+          lastName: event.data.last_name || "",
+          email: event.data.email_addresses?.[0]?.email_address || "",
+          image: event.data.image_url || "",
+          gender: event.data.gender || "",
         });
-
+    
+        // Save the new user and catch any errors
         await newUser.save();
-        console.log(`✅ User saved: ${email}`);
-      } catch (mongoError) {
-        console.error("❌ Error saving to MongoDB:", mongoError);
+        console.log(`✅ User saved: ${newUser.email}`);
+      } catch (error) {
+        console.error("❌ Error saving user:", error);
       }
     }
-
+    
     res.status(200).json({ message: "Webhook received successfully" });
   } catch (error) {
     console.error("Error processing webhook:", error);

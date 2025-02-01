@@ -21,7 +21,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // All other routes can use express.json()
 app.use("/user", userRouter);
 
-app.post("/clerk-webhook", express.json(), (req, res) => {
+app.post("/api/webhooks", express.json(), (req, res) => {
   const clerkSecret = process.env.CLERK_WEBHOOK_SECRET; // Store secret in .env
   const signature = req.headers["clerk-signature"];
   const rawBody = JSON.stringify(req.body);

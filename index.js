@@ -20,17 +20,25 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // All other routes can use express.json()
 app.use("/user", userRouter);
 
-app.post("/clerk-webhook",(req,res)=>{
-  const event = req.body;
+app.post("/clerk-webhook", (req, res) => {
+  try {
+    const event = req.body;
 
-  if (event.type === 'user.created') {
-    if (user.email_addresses && user.email_addresses.length > 0) {
-      userEmail = user.email_addresses[0].email_address;
+    if (event.type === "user.created") {
+      const user = event.data; // Extract user data
+
+      if (user.email_addresses && user.email_addresses.length > 0) {
+        const userEmail = user.email_addresses[0].email_address;
+        console.log(`New user created: ${userEmail}`);
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("Error processing webhook:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
-  console.log(`New user created: ${userEmail}`);
-  }
-  res.sendStatus(200);
-})
+});
 
 app.listen(PORT, async () => {
   try {

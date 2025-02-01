@@ -5,6 +5,7 @@ const { userRouter } = require("./routes/user.route");
 const bodyParser = require("body-parser"); // Import body-parser
 const path = require("path");
 const crypto = require("crypto");
+const { Webhook } = require("svix");
 
 const PORT = 8080;
 
@@ -21,33 +22,60 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // All other routes can use express.json()
 app.use("/user", userRouter);
 
-app.post("/api/webhooks", express.json(), (req, res) => {
-  const clerkSecret = process.env.CLERK_WEBHOOK_SECRET; // Store secret in .env
-  const signature = req.headers["clerk-signature"];
-  const rawBody = JSON.stringify(req.body);
+const SIGNING_SECRET = process.env.SIGNING_SECRET;
 
-  if (!signature) {
-    return res.status(400).send("Missing Clerk signature");
+if (!SIGNING_SECRET) {
+  throw new Error("Error: Please add SIGNING_SECRET from Clerk Dashboard to .env");
+}
+
+app.post("/clerk-webhook", async (req, res) => {
+  try {
+    // Get headers
+    const svix_id = req.headers["svix-id"];
+    const svix_timestamp = req.headers["svix-timestamp"];
+    const svix_signature = req.headers["svix-signature"];
+
+    if (!svix_id || !svix_timestamp || !svix_signature) {
+      return res.status(400).json({ message: "Error: Missing Svix headers" });
+    }
+
+    // Get raw body for verification
+    const payload = req.body;
+    const bodyString = JSON.stringify(payload);
+
+    // Create Svix Webhook instance
+    const wh = new Webhook(SIGNING_SECRET);
+
+    let event;
+    try {
+      // Verify the webhook signature
+      event = wh.verify(bodyString, {
+        "svix-id": svix_id,
+        "svix-timestamp": svix_timestamp,
+        "svix-signature": svix_signature,
+      });
+    } catch (err) {
+      console.error("Error verifying webhook:", err);
+      return res.status(400).json({ message: "Error: Verification failed" });
+    }
+
+    // Process the webhook event
+    const { id, email_addresses } = event.data;
+    const eventType = event.type;
+
+    console.log(`Received webhook with ID ${id} and event type of ${eventType}`);
+    console.log("Webhook payload:", payload);
+
+    if (eventType === "user.created") {
+      const userEmail = email_addresses?.[0]?.email_address || "No email provided";
+      console.log(`New user created: ${userEmail}`);
+    }
+
+    res.status(200).json({ message: "Webhook received successfully" });
+  } catch (error) {
+    console.error("Error processing webhook:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
-
-  const expectedSignature = crypto
-    .createHmac("sha256", clerkSecret)
-    .update(rawBody)
-    .digest("hex");
-
-  if (signature !== expectedSignature) {
-    return res.status(401).send("Invalid signature");
-  }
-
-  const event = req.body;
-
-  if (event.type === "user.created") {
-    const user = event.data;
-    const userEmail = user.email_addresses[0]?.email_address || "No email";
-    console.log(`New user created: ${userEmail}`);
-  }
-
-  res.sendStatus(200);
 });
 
 

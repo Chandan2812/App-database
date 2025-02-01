@@ -4,6 +4,7 @@ const { connection } = require("./config/db");
 const { userRouter } = require("./routes/user.route");
 const bodyParser = require("body-parser"); // Import body-parser
 const path = require("path");
+const crypto = require("crypto");
 
 const PORT = 8080;
 
@@ -20,25 +21,35 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // All other routes can use express.json()
 app.use("/user", userRouter);
 
-app.post("/clerk-webhook", (req, res) => {
-  try {
-    const event = req.body;
+app.post("/clerk-webhook", express.json(), (req, res) => {
+  const clerkSecret = process.env.CLERK_WEBHOOK_SECRET; // Store secret in .env
+  const signature = req.headers["clerk-signature"];
+  const rawBody = JSON.stringify(req.body);
 
-    if (event.type === "user.created") {
-      const user = event.data; // Extract user data
-
-      if (user.email_addresses && user.email_addresses.length > 0) {
-        const userEmail = user.email_addresses[0].email_address;
-        console.log(`New user created: ${userEmail}`);
-      }
-    }
-
-    res.sendStatus(200);
-  } catch (error) {
-    console.error("Error processing webhook:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+  if (!signature) {
+    return res.status(400).send("Missing Clerk signature");
   }
+
+  const expectedSignature = crypto
+    .createHmac("sha256", clerkSecret)
+    .update(rawBody)
+    .digest("hex");
+
+  if (signature !== expectedSignature) {
+    return res.status(401).send("Invalid signature");
+  }
+
+  const event = req.body;
+
+  if (event.type === "user.created") {
+    const user = event.data;
+    const userEmail = user.email_addresses[0]?.email_address || "No email";
+    console.log(`New user created: ${userEmail}`);
+  }
+
+  res.sendStatus(200);
 });
+
 
 app.listen(PORT, async () => {
   try {

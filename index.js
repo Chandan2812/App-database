@@ -6,6 +6,8 @@ const bodyParser = require("body-parser"); // Import body-parser
 const path = require("path");
 const crypto = require("crypto");
 const { Webhook } = require("svix");
+const { UserModel } = require("./model/user.model");
+
 
 const PORT = 8080;
 

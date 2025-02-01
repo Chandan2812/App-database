@@ -30,7 +30,6 @@ if (!SIGNING_SECRET) {
 
 app.post("/clerk-webhook", async (req, res) => {
   try {
-    // Get headers
     const svix_id = req.headers["svix-id"];
     const svix_timestamp = req.headers["svix-timestamp"];
     const svix_signature = req.headers["svix-signature"];
@@ -39,16 +38,12 @@ app.post("/clerk-webhook", async (req, res) => {
       return res.status(400).json({ message: "Error: Missing Svix headers" });
     }
 
-    // Get raw body for verification
     const payload = req.body;
     const bodyString = JSON.stringify(payload);
-
-    // Create Svix Webhook instance
-    const wh = new Webhook(SIGNING_SECRET);
+    const wh = new Webhook(process.env.SIGNING_SECRET); // ✅ Ensure it's correctly set
 
     let event;
     try {
-      // Verify the webhook signature
       event = wh.verify(bodyString, {
         "svix-id": svix_id,
         "svix-timestamp": svix_timestamp,
@@ -59,16 +54,29 @@ app.post("/clerk-webhook", async (req, res) => {
       return res.status(400).json({ message: "Error: Verification failed" });
     }
 
-    // Process the webhook event
-    const { id, email_addresses } = event.data;
-    const eventType = event.type;
+    console.log("Webhook Event Data:", event.data); // ✅ Debugging
 
-    console.log(`Received webhook with ID ${id} and event type of ${eventType}`);
-    console.log("Webhook payload:", payload);
+    // Extract user details
+    const { id, email_addresses, first_name, last_name, image_url, gender } = event.data;
+    const email = email_addresses?.[0]?.email_address || "";
 
-    if (eventType === "user.created") {
-      const userEmail = email_addresses?.[0]?.email_address || "No email provided";
-      console.log(`New user created: ${userEmail}`);
+    if (event.type === "user.created") {
+      try {
+        const newUser = new UserModel({
+          clerkId: id,
+          username: `${first_name} ${last_name}`.trim(),
+          firstName: first_name || "",
+          lastName: last_name || "",
+          email: email,
+          image: image_url || "",
+          gender: gender || "",
+        });
+
+        await newUser.save();
+        console.log(`✅ User saved: ${email}`);
+      } catch (mongoError) {
+        console.error("❌ Error saving to MongoDB:", mongoError);
+      }
     }
 
     res.status(200).json({ message: "Webhook received successfully" });
@@ -77,6 +85,7 @@ app.post("/clerk-webhook", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
+
 
 
 app.listen(PORT, async () => {

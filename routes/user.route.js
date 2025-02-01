@@ -446,4 +446,22 @@ userRouter.post(
   }
 );
 
+userRouter.get("/userdata/:userid", async (req, res) => {
+  try {
+    const { userid } = req.params;
+
+    // Find user by ID and select only nationality, phone, and gender
+    const user = await UserModel.findById(userid)
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 module.exports = { userRouter };

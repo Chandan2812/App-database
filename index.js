@@ -32,47 +32,66 @@ if (!SIGNING_SECRET) {
 
 app.post("/clerk-webhook", async (req, res) => {
   try {
+    // Get headers
     const svix_id = req.headers["svix-id"];
     const svix_timestamp = req.headers["svix-timestamp"];
     const svix_signature = req.headers["svix-signature"];
 
     if (!svix_id || !svix_timestamp || !svix_signature) {
-      return res.status(400).json({ message: "Missing Svix headers" });
+      return res.status(400).json({ message: "Error: Missing Svix headers" });
     }
 
+    // Get raw body for verification
     const payload = req.body;
     const bodyString = JSON.stringify(payload);
+
+    // Create Svix Webhook instance
     const wh = new Webhook(SIGNING_SECRET);
 
     let event;
     try {
+      // Verify the webhook signature
       event = wh.verify(bodyString, {
         "svix-id": svix_id,
         "svix-timestamp": svix_timestamp,
         "svix-signature": svix_signature,
       });
     } catch (err) {
-      console.error("Webhook verification failed:", err);
-      return res.status(400).json({ message: "Verification failed" });
+      console.error("Error verifying webhook:", err);
+      return res.status(400).json({ message: "Error: Verification failed" });
     }
 
-    const { id, email_addresses, first_name, last_name } = event.data;
-    const email = email_addresses?.[0]?.email_address || "";
+    // Process the webhook event
+    // const { id, email_addresses } = event.data;
+    const eventType = event.type;
 
-    if (event.type === "user.created") {
+    console.log(`Received webhook with ID ${id} and event type of ${eventType}`);
+    console.log("Webhook payload:", payload);
+
+     // Extract data from Clerk Webhook
+     const { id, email_addresses, first_name, last_name, image_url, gender } = event.data;
+     const email = email_addresses?.[0]?.email_address || "";
+
+    if (eventType === "user.created") {
+      const userEmail = email_addresses?.[0]?.email_address || "No email provided";
       const newUser = new UserModel({
         clerkId: id,
-        username: `${first_name} ${last_name}`,
+        username: `${first_name} ${last_name}`.trim(),
+        firstName: first_name || "",
+        lastName: last_name || "",
         email: email,
+        image: image_url || "",
+        gender: gender || "",
       });
 
       await newUser.save();
-      console.log(`New user added to database: ${email}`);
+      console.log(`✅ User saved: ${email}`);
+      console.log(`New user created: ${userEmail}`);
     }
 
-    res.status(200).json({ message: "Webhook received" });
+    res.status(200).json({ message: "Webhook received successfully" });
   } catch (error) {
-    console.error("Webhook processing error:", error);
+    console.error("Error processing webhook:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });

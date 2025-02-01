@@ -20,6 +20,18 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // All other routes can use express.json()
 app.use("/user", userRouter);
 
+app.post("/clerk-webhook",(req,res)=>{
+  const event = req.body;
+
+  if (event.type === 'user.created') {
+    if (user.email_addresses && user.email_addresses.length > 0) {
+      userEmail = user.email_addresses[0].email_address;
+  }
+  console.log(`New user created: ${userEmail}`);
+  }
+  res.sendStatus(200);
+})
+
 app.listen(PORT, async () => {
   try {
     await connection;

@@ -2,25 +2,29 @@ const express = require("express");
 const cors = require("cors");
 const { connection } = require("./config/db");
 const { userRouter } = require("./routes/user.route");
+const chatRouter = require("./routes/chat.route");
 const path = require("path");
 const { Webhook } = require("svix");
 const { UserModel } = require("./model/user.model");
-
-const PORT = 8080;
+const http = require("http");
+const { Server } = require("socket.io");
 
 require("dotenv").config();
 
 const app = express();
+const server = http.createServer(app);
+const PORT = process.env.PORT || 8080;
+
+// Middleware
 app.use(express.json());
 app.use(cors());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Apply raw body middleware for Clerk webhook route
-// app.use("/user/api/clerk-webhook", bodyParser.raw({ type: "application/json" }));
-
-// All other routes can use express.json()
+// Routes
 app.use("/user", userRouter);
+app.use("/chat", chatRouter);
 
+// Clerk Webhook Setup
 const SIGNING_SECRET = process.env.SIGNING_SECRET;
 
 if (!SIGNING_SECRET) {
@@ -41,7 +45,7 @@ app.post("/clerk-webhook", async (req, res) => {
 
     const payload = req.body;
     const bodyString = JSON.stringify(payload);
-    const wh = new Webhook(process.env.SIGNING_SECRET); // ✅ Ensure it's correctly set
+    const wh = new Webhook(SIGNING_SECRET);
 
     let event;
     try {
@@ -51,30 +55,34 @@ app.post("/clerk-webhook", async (req, res) => {
         "svix-signature": svix_signature,
       });
     } catch (err) {
-      console.error("Error verifying webhook:", err);
+      console.error("❌ Error verifying webhook:", err);
       return res.status(400).json({ message: "Error: Verification failed" });
     }
 
-    console.log("Webhook Event Data:", event.data); // ✅ Debugging
-
-    // Extract user details
-    const { id, email_addresses, first_name, last_name, image_url, gender } =
-      event.data;
-    const email = email_addresses?.[0]?.email_address || "";
+    console.log("📩 Webhook Event Data:", event.data);
 
     if (event.type === "user.created") {
       try {
+        const {
+          id,
+          email_addresses,
+          first_name,
+          last_name,
+          image_url,
+          gender,
+        } = event.data;
+        const email = email_addresses?.[0]?.email_address || "";
+
         const newUser = new UserModel({
-          clerkId: event.data.id,
-          username: `${event.data.first_name} ${event.data.last_name}`.trim(),
-          firstName: event.data.first_name || "",
-          lastName: event.data.last_name || "",
-          email: event.data.email_addresses?.[0]?.email_address || "",
-          image: event.data.image_url || "",
-          gender: event.data.gender || "",
+          clerkId: id,
+          username: `${first_name} ${last_name}`.trim(),
+          firstName: first_name || "",
+          lastName: last_name || "",
+          email,
+          image: image_url || "",
+          gender: gender || "",
         });
 
-        // Save the new user and catch any errors
         await newUser.save();
         console.log(`✅ User saved: ${newUser.email}`);
       } catch (error) {
@@ -84,15 +92,44 @@ app.post("/clerk-webhook", async (req, res) => {
 
     res.status(200).json({ message: "Webhook received successfully" });
   } catch (error) {
-    console.error("Error processing webhook:", error);
+    console.error("❌ Error processing webhook:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
-app.listen(PORT, async () => {
+// Real-time Chat with Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log(`🟢 User connected: ${socket.id}`);
+
+  socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
+    try {
+      const newMessage = new ChatModel({ senderId, receiverId, message });
+      await newMessage.save();
+      io.emit("newMessage", newMessage);
+    } catch (error) {
+      console.error("❌ Error saving message:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`🔴 User disconnected: ${socket.id}`);
+  });
+});
+
+// Start Server
+server.listen(PORT, async () => {
   try {
     await connection;
-    console.log("Connected to DB");
-  } catch (error) {}
-  console.log(`Server is listening on port ${PORT}`);
+    console.log("✅ Connected to DB");
+  } catch (error) {
+    console.error("❌ Error connecting to DB:", error);
+  }
+  console.log(`🚀 Server is running on port ${PORT}`);
 });

@@ -14,6 +14,7 @@ const chatSchema = new mongoose.Schema(
     },
     message: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
+    deletedForReceiver: { type: Boolean, default: false }, // New field
   },
   { timestamps: true }
 );

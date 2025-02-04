@@ -4,10 +4,10 @@ const { authMiddleware } = require("../middleware/auth.middleware"); // We'll cr
 const chatRouter = express.Router();
 
 // Send a new message
-chatRouter.post("/send", authMiddleware, async (req, res) => {
+chatRouter.post("/send", async (req, res) => {
   try {
-    const { receiverId, message } = req.body;
-    const senderId = req.user.id; // Extracted from middleware
+    const {senderId, receiverId, message } = req.body;
+
 
     if (!receiverId || !message) {
       return res
@@ -25,10 +25,14 @@ chatRouter.post("/send", authMiddleware, async (req, res) => {
 });
 
 // Get chat messages between two users
-chatRouter.get("/messages/:receiverId", authMiddleware, async (req, res) => {
+chatRouter.get("/messages/:receiverId", async (req, res) => {
   try {
-    const senderId = req.user.id; // Extracted from middleware
+    const senderId = req.query.senderId;
     const { receiverId } = req.params;
+
+    if (!senderId) {
+      return res.status(400).json({ message: "Sender ID is required." });
+    }
 
     const chats = await ChatModel.find({
       $or: [

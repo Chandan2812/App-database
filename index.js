@@ -8,7 +8,6 @@ const { Webhook } = require("svix");
 const { UserModel } = require("./model/user.model");
 const http = require("http");
 const { Server } = require("socket.io");
-const { Expo } = require("expo-server-sdk");  // Import Expo SDK
 
 require("dotenv").config();
 
@@ -24,31 +23,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 app.use("/user", userRouter);
 app.use("/chat", chatRouter);
-
-// Expo SDK Setup
-let expo = new Expo();  // Initialize Expo SDK
-
-// Helper function to send push notifications
-const sendPushNotification = async (pushToken, message) => {
-  if (!Expo.isExpoPushToken(pushToken)) {
-    console.error("Invalid Expo push token");
-    return;
-  }
-
-  const messages = [{
-    to: pushToken,
-    sound: 'default',
-    title: 'New Message',
-    body: message,
-  }];
-
-  try {
-    const response = await expo.sendPushNotificationsAsync(messages);
-    console.log("Push notification sent:", response);
-  } catch (error) {
-    console.error("Error sending push notification:", error);
-  }
-};
 
 // Clerk Webhook Setup
 const SIGNING_SECRET = process.env.SIGNING_SECRET;
@@ -99,10 +73,9 @@ app.post("/clerk-webhook", async (req, res) => {
         } = event.data;
         const email = email_addresses?.[0]?.email_address || "";
 
-        // Create a new user in the database
         const newUser = new UserModel({
           clerkId: id,
-          username: `${first_name} ${last_name}`.trim(),
+          username: `${first_name} ${last_name}.trim()`,
           firstName: first_name || "",
           lastName: last_name || "",
           email,
@@ -112,12 +85,6 @@ app.post("/clerk-webhook", async (req, res) => {
 
         await newUser.save();
         console.log(`✅ User saved: ${newUser.email}`);
-
-        // Send a push notification to the new user (if pushToken is available)
-        if (newUser.pushToken) {
-          await sendPushNotification(newUser.pushToken, "Welcome to the app!");
-        }
-
       } catch (error) {
         console.error("❌ Error saving user:", error);
       }
@@ -143,21 +110,11 @@ io.on("connection", (socket) => {
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     try {
-      // Save the message to the database
       const newMessage = new ChatModel({ senderId, receiverId, message });
       await newMessage.save();
       io.emit("newMessage", newMessage);
-
-      // Retrieve the receiver's user data to get the push token
-      const receiver = await UserModel.findOne({ clerkId: receiverId });
-      if (receiver && receiver.pushToken) {
-        // Send a push notification to the receiver
-        const notificationMessage = `${senderId} sent you a new message`;
-        await sendPushNotification(receiver.pushToken, notificationMessage);
-      }
-
     } catch (error) {
-      console.error("❌ Error sending message:", error);
+      console.error("❌ Error saving message:", error);
     }
   });
 
@@ -174,5 +131,5 @@ server.listen(PORT, async () => {
   } catch (error) {
     console.error("❌ Error connecting to DB:", error);
   }
-  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });

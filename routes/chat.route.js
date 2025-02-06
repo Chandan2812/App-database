@@ -85,4 +85,41 @@ chatRouter.delete("/delete/:messageId", async (req, res) => {
   }
 });
 
+const axios = require("axios");
+
+chatRouter.post("/send-push-notification", async (req, res) => {
+  const { receiverId, message, senderId } = req.body;
+
+  try {
+    // Fetch the push token of the receiver (User B)
+    const receiverData = await User.findById(receiverId);
+    if (!receiverData || !receiverData.pushToken) {
+      return res.status(400).json({ error: "Receiver push token not found" });
+    }
+
+    const pushToken = receiverData.pushToken;
+
+    // Prepare the message
+    const notification = {
+      to: pushToken,
+      sound: "default",
+      title: "New Message",
+      body: `${senderId} sent you a message: ${message}`,
+      data: { senderId, message },
+    };
+
+    // Send the notification via Expo's Push Notification service
+    const response = await axios.post(
+      "https://exp.host/--/api/v2/push/send",
+      notification
+    );
+
+    res.status(200).json({ success: true, response });
+  } catch (error) {
+    console.error("Error sending push notification:", error);
+    res.status(500).json({ error: "Failed to send push notification" });
+  }
+});
+
+
 module.exports = chatRouter;

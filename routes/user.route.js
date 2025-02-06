@@ -457,4 +457,29 @@ userRouter.get("/userdata/:email", async (req, res) => {
   }
 });
 
+
+// Update push token for notifications
+userRouter.post("/update-push-token", async (req, res) => {
+  const { email, pushToken } = req.body;
+
+  if (!email || !pushToken) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  try {
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.pushToken = pushToken;
+    await user.save();
+    return res.status(200).json({ message: "Push token updated successfully" });
+
+  } catch (error) {
+    console.error("Error updating push token:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 module.exports = { userRouter };

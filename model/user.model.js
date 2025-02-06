@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, default: "" }, // New field
     Gender:{type:String,default:""}, // New field
     image: { type: String, default: "" }, // Field to store the profile image URL
+    pushToken: { type: String, default: "" },
   },
   { timestamps: true }
 );

@@ -64,6 +64,7 @@ app.post("/clerk-webhook", async (req, res) => {
     if (event.type === "user.created") {
       try {
         const {
+          id,
           email_addresses,
           first_name,
           last_name,
@@ -73,6 +74,7 @@ app.post("/clerk-webhook", async (req, res) => {
         const email = email_addresses?.[0]?.email_address || "";
 
         const newUser = new UserModel({
+          clerkId: id,
           username: `${first_name} ${last_name}`,
           firstName: first_name || "",
           lastName: last_name || "",
@@ -121,13 +123,21 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start Server
 server.listen(PORT, async () => {
   try {
     await connection;
     console.log("✅ Connected to DB");
+
+    // Drop unique index on clerkId if it exists
+    try {
+      await UserModel.collection.dropIndex("clerkId_1");
+      console.log("✅ Dropped unique index on clerkId");
+    } catch (error) {
+      console.log("ℹ️ No existing unique index on clerkId, or already removed.");
+    }
+
   } catch (error) {
     console.error("❌ Error connecting to DB:", error);
   }
-  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });

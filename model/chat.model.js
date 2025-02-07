@@ -14,6 +14,7 @@ const chatSchema = new mongoose.Schema(
     },
     message: { type: String, required: true },
     timestamp: { type: Date, default: Date.now },
+    isRead: { type: Boolean, default: false }, // ✅ New field to track unread messages
     deletedForReceiver: { type: Boolean, default: false }, // New field
   },
   { timestamps: true }

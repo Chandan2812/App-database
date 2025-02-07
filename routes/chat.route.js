@@ -14,10 +14,64 @@ chatRouter.post("/send", async (req, res) => {
         .json({ message: "Receiver ID and message are required." });
     }
 
-    const newChat = new ChatModel({ senderId, receiverId, message });
+    const newChat = new ChatModel({
+      senderId,
+      receiverId,
+      message,
+      isRead: false, // ✅ New messages are unread by default
+    });
     await newChat.save();
 
     res.status(201).json({ success: true, chat: newChat });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error", error });
+  }
+});
+
+// Add an API to Get Unread Messages Count
+// This API will return the number of unread messages for a specific user.
+
+chatRouter.get("/unread-messages", async (req, res) => {
+  try {
+    const { receiverId, senderId } = req.query;
+
+    if (!receiverId || !senderId) {
+      return res
+        .status(400)
+        .json({ message: "Receiver and Sender IDs are required." });
+    }
+
+    const unreadCount = await ChatModel.countDocuments({
+      senderId,
+      receiverId,
+      isRead: false,
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error", error });
+  }
+});
+
+//  Add an API to Mark Messages as Read
+// This API will update unread messages to "read" when a user opens the chat.
+
+chatRouter.post("/mark-as-read", async (req, res) => {
+  try {
+    const { receiverId, senderId } = req.body;
+
+    if (!receiverId || !senderId) {
+      return res
+        .status(400)
+        .json({ message: "Receiver and Sender IDs are required." });
+    }
+
+    await ChatModel.updateMany(
+      { senderId, receiverId, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    res.json({ success: true, message: "Messages marked as read." });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error", error });
   }

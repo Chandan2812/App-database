@@ -66,7 +66,6 @@ userRouter.post("/signup", async (req, res) => {
 
     // Send verification email
     const verificationLink = `https://app-database.onrender.com/user/verify/${verificationToken}`;
-    console.log(verificationLink);
     await transporter.sendMail({
       from: process.env.EMAIL,
       to: email,

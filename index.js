@@ -35,7 +35,6 @@ if (!SIGNING_SECRET) {
 
 app.post("/clerk-webhook", async (req, res) => {
   try {
-    // ✅ 1. Extract headers required for verification
     const svix_id = req.headers["svix-id"];
     const svix_timestamp = req.headers["svix-timestamp"];
     const svix_signature = req.headers["svix-signature"];
@@ -44,7 +43,6 @@ app.post("/clerk-webhook", async (req, res) => {
       return res.status(400).json({ message: "Error: Missing Svix headers" });
     }
 
-    // ✅ 2. Verify the webhook signature
     const payload = req.body;
     const bodyString = JSON.stringify(payload);
     const wh = new Webhook(SIGNING_SECRET);
@@ -57,63 +55,44 @@ app.post("/clerk-webhook", async (req, res) => {
         "svix-signature": svix_signature,
       });
     } catch (err) {
-      console.error("❌ Error verifying webhook:", err.message);
+      console.error("❌ Error verifying webhook:", err);
       return res.status(400).json({ message: "Error: Verification failed" });
     }
 
-    console.log("📩 Webhook Event Type:", event.type);
     console.log("📩 Webhook Event Data:", event.data);
 
-    // ✅ 3. Process the event type
     if (event.type === "user.created") {
       try {
         const {
-          id: clerkId,
+          id,
           email_addresses,
           first_name,
           last_name,
           image_url,
           gender,
         } = event.data;
-        
         const email = email_addresses?.[0]?.email_address || "";
 
-        // ✅ Check if the user already exists (by Clerk ID or Email)
-        let existingUser = await UserModel.findOne({ $or: [{ clerkId }, { email }] });
-
-        if (existingUser) {
-          console.log(`✅ User already exists: ${existingUser.email}`);
-          return res.status(200).json({ message: "User already exists" });
-        }
-
-        // ✅ Create a new user if they don't exist
         const newUser = new UserModel({
-          clerkId,  
-          username: `${first_name} ${last_name}`.trim(),
+          clerkId: id,
+          username: `${first_name} ${last_name}`,
           firstName: first_name || "",
           lastName: last_name || "",
           email,
           image: image_url || "",
           gender: gender || "",
-          expoPushToken: "",  // Placeholder, should be updated later
         });
 
         await newUser.save();
-        console.log(`✅ New user saved: ${newUser.email}`);
-
-        return res.status(201).json({ message: "User created successfully", user: newUser });
+        console.log(`✅ User saved: ${newUser.email}`);
       } catch (error) {
-        console.error("❌ Error saving user:", error.message);
-        return res.status(500).json({ message: "Error saving user" });
+        console.error("❌ Error saving user:", error);
       }
-    } else {
-      console.log(`ℹ️ Unsupported webhook event: ${event.type}`);
     }
 
-    res.status(200).json({ message: "Webhook processed successfully" });
-
+    res.status(200).json({ message: "Webhook received successfully" });
   } catch (error) {
-    console.error("❌ Error processing webhook:", error.message);
+    console.error("❌ Error processing webhook:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });

@@ -5,9 +5,6 @@ const nodemailer = require("nodemailer");
 const { UserModel } = require("../model/user.model");
 const verifyClerkWebhook = require("../utils/verifyClerkWebhook");
 const multer = require("multer");
-const { Expo } = require("expo-server-sdk");
-
-const expo = new Expo();
 
 require("dotenv").config();
 
@@ -460,67 +457,6 @@ userRouter.get("/userdata/:email", async (req, res) => {
   }
 });
 
-// Save Expo push token to the user
-userRouter.post("/save-token", async (req, res) => {
-  try {
-    const { email, token } = req.body;
-
-    if (!email || !token) {
-      return res.status(400).json({ message: "Email and token are required" });
-    }
-
-    const user = await UserModel.findOneAndUpdate(
-      { email },
-      { expoPushToken: token },
-      { new: true, upsert: true }
-    );
-
-    res.status(200).json({ message: "Token saved successfully", user });
-  } catch (error) {
-    console.error("Error saving push token:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-});
-
-userRouter.post("/send-notification", async (req, res) => {
-  try {
-    const { email, title, message } = req.body;
-
-    if (!email || !title || !message) {
-      return res.status(400).json({ message: "Email, title, and message are required" });
-    }
-
-    // Find user by email
-    const user = await UserModel.findOne({ email });
-
-    if (!user || !user.expoPushToken) {
-      return res.status(404).json({ message: "User not found or no push token available" });
-    }
-
-    const pushToken = user.expoPushToken;
-
-    if (!Expo.isExpoPushToken(pushToken)) {
-      return res.status(400).json({ message: "Invalid Expo push token" });
-    }
-
-    // Construct the push notification
-    const messageObj = {
-      to: pushToken,
-      sound: "default",
-      title: title,
-      body: message,
-      data: { customData: "Your custom data here" },
-    };
-
-    // Send notification
-    const ticket = await expo.sendPushNotificationsAsync([messageObj]);
-
-    res.status(200).json({ message: "Notification sent successfully", ticket });
-  } catch (error) {
-    console.error("❌ Error sending push notification:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-});
 
 
 module.exports = { userRouter };

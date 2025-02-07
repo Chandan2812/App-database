@@ -75,7 +75,7 @@ app.post("/clerk-webhook", async (req, res) => {
 
         const newUser = new UserModel({
           clerkId: id,
-          username: `${first_name} ${last_name}.trim()`,
+          username: `${first_name} ${last_name}`,
           firstName: first_name || "",
           lastName: last_name || "",
           email,

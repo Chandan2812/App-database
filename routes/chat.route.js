@@ -22,9 +22,6 @@ chatRouter.post("/send", async (req, res) => {
     });
     await newChat.save();
 
-    // ✅ Emit message via Socket.IO
-    req.io.emit("newMessage", newChat);
-
     res.status(201).json({ success: true, chat: newChat });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error", error });

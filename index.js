@@ -64,7 +64,6 @@ app.post("/clerk-webhook", async (req, res) => {
     if (event.type === "user.created") {
       try {
         const {
-          id,
           email_addresses,
           first_name,
           last_name,
@@ -74,7 +73,6 @@ app.post("/clerk-webhook", async (req, res) => {
         const email = email_addresses?.[0]?.email_address || "";
 
         const newUser = new UserModel({
-          clerkId: id,
           username: `${first_name} ${last_name}`,
           firstName: first_name || "",
           lastName: last_name || "",

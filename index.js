@@ -75,7 +75,7 @@ app.post("/clerk-webhook", async (req, res) => {
 
         const newUser = new UserModel({
           clerkId: id,
-          username: `${first_name} ${last_name}`.trim(),
+          username: `${first_name} ${last_name}`,
           firstName: first_name || "",
           lastName: last_name || "",
           email,
@@ -131,5 +131,5 @@ server.listen(PORT, async () => {
   } catch (error) {
     console.error("❌ Error connecting to DB:", error);
   }
-  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });

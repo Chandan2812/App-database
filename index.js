@@ -81,6 +81,7 @@ app.post("/clerk-webhook", async (req, res) => {
           email,
           image: image_url || "",
           gender: gender || "",
+          expoPushToken: "",
         });
 
         await newUser.save();

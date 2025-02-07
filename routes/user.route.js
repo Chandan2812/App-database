@@ -457,6 +457,27 @@ userRouter.get("/userdata/:email", async (req, res) => {
   }
 });
 
+// Save Expo push token to the user
+userRouter.post("/save-token", async (req, res) => {
+  try {
+    const { email, token } = req.body;
+
+    if (!email || !token) {
+      return res.status(400).json({ message: "Email and token are required" });
+    }
+
+    const user = await UserModel.findOneAndUpdate(
+      { email },
+      { expoPushToken: token },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({ message: "Token saved successfully", user });
+  } catch (error) {
+    console.error("Error saving push token:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
 
 
 module.exports = { userRouter };

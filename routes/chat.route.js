@@ -22,6 +22,9 @@ chatRouter.post("/send", async (req, res) => {
     });
     await newChat.save();
 
+    // ✅ Emit new message event to receiver
+    req.io.to(receiverId).emit("newMessage", newChat);
+
     res.status(201).json({ success: true, chat: newChat });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error", error });
@@ -138,6 +141,5 @@ chatRouter.delete("/delete/:messageId", async (req, res) => {
     res.status(500).json({ message: "Internal Server Error", error });
   }
 });
-
 
 module.exports = chatRouter;

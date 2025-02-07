@@ -6,6 +6,7 @@ const chatRouter = require("./routes/chat.route");
 const path = require("path");
 const { Webhook } = require("svix");
 const { UserModel } = require("./model/user.model");
+const { ChatModel } = require("./model/chat.model");
 const http = require("http");
 const { Server } = require("socket.io");
 
@@ -105,22 +106,51 @@ const io = new Server(server, {
   },
 });
 
+// ✅ Store connected users
+const onlineUsers = new Map();
+
 io.on("connection", (socket) => {
   console.log(`🟢 User connected: ${socket.id}`);
 
+  // ✅ Register user on connection
+  socket.on("registerUser", (userId) => {
+    onlineUsers.set(userId, socket.id);
+  });
+
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     try {
-      const newMessage = new ChatModel({ senderId, receiverId, message });
+      const newMessage = new ChatModel({
+        senderId,
+        receiverId,
+        message,
+        isRead: false,
+      });
       await newMessage.save();
-      io.emit("newMessage", newMessage);
+      const receiverSocketId = onlineUsers.get(receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("newMessage", newMessage); // ✅ Send only to receiver
+      }
     } catch (error) {
       console.error("❌ Error saving message:", error);
     }
   });
 
+  // ✅ Handle user disconnect
   socket.on("disconnect", () => {
     console.log(`🔴 User disconnected: ${socket.id}`);
+    for (let [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
   });
+});
+
+// ✅ Attach io to req for real-time chat in routes
+app.use((req, res, next) => {
+  req.io = io;
+  next();
 });
 
 // Start Server

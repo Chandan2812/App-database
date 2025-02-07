@@ -22,8 +22,8 @@ chatRouter.post("/send", async (req, res) => {
     });
     await newChat.save();
 
-    // ✅ Emit new message event to receiver
-    req.io.to(receiverId).emit("newMessage", newChat);
+    // ✅ Emit message via Socket.IO
+    req.io.emit("newMessage", newChat);
 
     res.status(201).json({ success: true, chat: newChat });
   } catch (error) {

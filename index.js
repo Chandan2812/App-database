@@ -176,7 +176,9 @@ io.on("connection", (socket) => {
         console.log("ℹ️ Receiver does not have a push token.");
       }
 
-      io.emit("newMessage", newMessage);
+      // ✅ Send message only to sender & receiver (avoid broadcasting to everyone)
+      socket.to(receiverId).emit("newMessage", newMessage); // Send to receiver
+      socket.to(senderId).emit("newMessage", newMessage); // Send to sender
     } catch (error) {
       console.error("❌ Error saving message:", error);
     }

@@ -6,10 +6,8 @@ const chatRouter = require("./routes/chat.route");
 const path = require("path");
 const { Webhook } = require("svix");
 const { UserModel } = require("./model/user.model");
-const { ChatModel } = require("./model/chat.model"); // Ensure this exists
 const http = require("http");
 const { Server } = require("socket.io");
-const fetch = require("node-fetch"); // Import fetch for sending notifications
 
 require("dotenv").config();
 
@@ -28,36 +26,13 @@ app.use("/chat", chatRouter);
 
 // Clerk Webhook Setup
 const SIGNING_SECRET = process.env.SIGNING_SECRET;
+
 if (!SIGNING_SECRET) {
   throw new Error(
     "Error: Please add SIGNING_SECRET from Clerk Dashboard to .env"
   );
 }
 
-app.post("/saveToken", async (req, res) => {
-  const { email, expoPushToken } = req.body;
-
-  if (!email || !expoPushToken) {
-    return res.status(400).json({ error: "Missing email or expoPushToken" });
-  }
-
-  try {
-    await UserModel.findOneAndUpdate(
-      { email }, // Find user by email instead of userId
-      { expoPushToken }, // Update token
-      { new: true, upsert: true } // Create if user doesn't exist
-    );
-
-    res
-      .status(200)
-      .json({ success: true, message: "Token saved successfully" });
-  } catch (error) {
-    console.error("Error saving token:", error);
-    res.status(500).json({ success: false, error: "Server error" });
-  }
-});
-
-// Clerk Webhook for User Creation
 app.post("/clerk-webhook", async (req, res) => {
   try {
     const svix_id = req.headers["svix-id"];
@@ -130,54 +105,14 @@ const io = new Server(server, {
   },
 });
 
-// Function to send push notification
-async function sendPushNotification(expoPushToken, message) {
-  const pushMessage = {
-    to: expoPushToken,
-    sound: "default",
-    title: "New Message",
-    body: message,
-    data: { someData: "goes here" },
-  };
-
-  try {
-    const response = await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Accept-encoding": "gzip, deflate",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(pushMessage),
-    });
-
-    const data = await response.json();
-    console.log("✅ Push Notification Sent:", data);
-  } catch (error) {
-    console.error("❌ Error sending notification:", error);
-  }
-}
-
-// Socket.io Event Handlers
 io.on("connection", (socket) => {
   console.log(`🟢 User connected: ${socket.id}`);
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     try {
-      // Save message in DB
       const newMessage = new ChatModel({ senderId, receiverId, message });
       await newMessage.save();
-
-      // Fetch receiver's push token
-      const receiver = await UserModel.findById(receiverId);
-      if (receiver?.expoPushToken) {
-        await sendPushNotification(receiver.expoPushToken, message);
-      } else {
-        console.log("ℹ️ Receiver does not have a push token.");
-      }
-
-      // ✅ Send only to the receiver (Sender already updates state)
-      socket.to(receiverId).emit("newMessage", newMessage);
+      io.emit("newMessage", newMessage);
     } catch (error) {
       console.error("❌ Error saving message:", error);
     }

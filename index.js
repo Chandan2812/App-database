@@ -33,6 +33,29 @@ if (!SIGNING_SECRET) {
   );
 }
 
+app.post("/saveToken", async (req, res) => {
+  const { email, expoPushToken } = req.body;
+
+  if (!email || !expoPushToken) {
+    return res.status(400).json({ error: "Missing email or expoPushToken" });
+  }
+
+  try {
+    await UserModel.findOneAndUpdate(
+      { email }, // Find user by email instead of userId
+      { expoPushToken }, // Update token
+      { new: true, upsert: true } // Create if user doesn't exist
+    );
+
+    res
+      .status(200)
+      .json({ success: true, message: "Token saved successfully" });
+  } catch (error) {
+    console.error("Error saving token:", error);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 app.post("/clerk-webhook", async (req, res) => {
   try {
     const svix_id = req.headers["svix-id"];
@@ -133,9 +156,10 @@ server.listen(PORT, async () => {
       await UserModel.collection.dropIndex("clerkId_1");
       console.log("✅ Dropped unique index on clerkId");
     } catch (error) {
-      console.log("ℹ️ No existing unique index on clerkId, or already removed.");
+      console.log(
+        "ℹ️ No existing unique index on clerkId, or already removed."
+      );
     }
-
   } catch (error) {
     console.error("❌ Error connecting to DB:", error);
   }

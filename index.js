@@ -162,14 +162,14 @@ async function sendPushNotification(expoPushToken, message) {
 io.on("connection", (socket) => {
   console.log(`🟢 User connected: ${socket.id}`);
 
-  socket.on("sendMessage", async ({ senderId, receiverEmail, message }) => {
+  socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     try {
       // Save message in DB
-      const newMessage = new ChatModel({ senderId, receiverEmail, message });
+      const newMessage = new ChatModel({ senderId, receiverId, message });
       await newMessage.save();
 
       // Fetch receiver's push token
-      const receiver = await UserModel.findOne({ email: receiverEmail });
+      const receiver = await UserModel.findById(receiverId);
       if (receiver?.expoPushToken) {
         await sendPushNotification(receiver.expoPushToken, message);
       } else {

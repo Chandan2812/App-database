@@ -109,7 +109,7 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log(`🟢 User connected: ${socket.id}`);
 
-  // ✅ Prevent duplicate event listeners
+  // ✅ Ensure only ONE listener is active per connection
   socket.removeAllListeners("sendMessage");
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
@@ -118,8 +118,21 @@ io.on("connection", (socket) => {
     );
 
     try {
+      const existingMessage = await ChatModel.findOne({
+        senderId,
+        receiverId,
+        message,
+      });
+
+      if (existingMessage) {
+        console.warn("⚠️ Duplicate message detected, skipping save.");
+        return;
+      }
+
       const newMessage = new ChatModel({ senderId, receiverId, message });
       await newMessage.save();
+      console.log("✅ Message saved to database");
+
       io.emit("newMessage", newMessage);
 
       const receiver = await UserModel.findOne({ _id: receiverId });

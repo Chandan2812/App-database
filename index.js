@@ -6,6 +6,7 @@ const chatRouter = require("./routes/chat.route");
 const path = require("path");
 const { Webhook } = require("svix");
 const { UserModel } = require("./model/user.model");
+const { ChatModel } = require("./model/chat.model");
 const http = require("http");
 const { Server } = require("socket.io");
 

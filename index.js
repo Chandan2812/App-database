@@ -109,33 +109,23 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log(`🟢 User connected: ${socket.id}`);
 
-  socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
-    try {
-      console.log(
-        `📩 Message received from ${senderId} to ${receiverId}: ${message}`
-      );
+  // ✅ Prevent duplicate event listeners
+  socket.removeAllListeners("sendMessage");
 
-      // ✅ Save the message in the database
+  socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
+    console.log(
+      `🔄 Event triggered: sendMessage for receiverId: ${receiverId}`
+    );
+
+    try {
       const newMessage = new ChatModel({ senderId, receiverId, message });
       await newMessage.save();
       io.emit("newMessage", newMessage);
-      console.log("✅ Message saved to database");
 
-      // ✅ Find recipient's push token
       const receiver = await UserModel.findOne({ _id: receiverId });
 
-      if (receiver) {
-        console.log(`👤 Found recipient: ${receiver.email}`);
-        if (receiver.pushToken) {
-          console.log(
-            `📲 Sending notification to token: ${receiver.pushToken}`
-          );
-          await sendPushNotification(receiver.pushToken, message);
-        } else {
-          console.warn(`⚠️ User ${receiver.email} does not have a push token`);
-        }
-      } else {
-        console.warn(`⚠️ No user found with ID: ${receiverId}`);
+      if (receiver?.pushToken) {
+        await sendPushNotification(receiver.pushToken, message);
       }
     } catch (error) {
       console.error("❌ Error sending message:", error);

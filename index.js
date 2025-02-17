@@ -110,20 +110,34 @@ io.on("connection", (socket) => {
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
     try {
+      console.log(
+        `📩 Message received from ${senderId} to ${receiverId}: ${message}`
+      );
+
+      // ✅ Save the message in the database
       const newMessage = new ChatModel({ senderId, receiverId, message });
       await newMessage.save();
       io.emit("newMessage", newMessage);
+      console.log("✅ Message saved to database");
 
       // ✅ Find recipient's push token
       const receiver = await UserModel.findOne({ _id: receiverId });
 
-      if (receiver && receiver.pushToken) {
-        await sendPushNotification(receiver.pushToken, message);
+      if (receiver) {
+        console.log(`👤 Found recipient: ${receiver.email}`);
+        if (receiver.pushToken) {
+          console.log(
+            `📲 Sending notification to token: ${receiver.pushToken}`
+          );
+          await sendPushNotification(receiver.pushToken, message);
+        } else {
+          console.warn(`⚠️ User ${receiver.email} does not have a push token`);
+        }
       } else {
-        console.warn(`⚠️ No push token found for user ID: ${receiverId}`);
+        console.warn(`⚠️ No user found with ID: ${receiverId}`);
       }
     } catch (error) {
-      console.error("❌ Error saving message:", error);
+      console.error("❌ Error sending message:", error);
     }
   });
 

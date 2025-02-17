@@ -113,6 +113,15 @@ io.on("connection", (socket) => {
       const newMessage = new ChatModel({ senderId, receiverId, message });
       await newMessage.save();
       io.emit("newMessage", newMessage);
+
+      // ✅ Find recipient's push token
+      const receiver = await UserModel.findOne({ _id: receiverId });
+
+      if (receiver && receiver.pushToken) {
+        await sendPushNotification(receiver.pushToken, message);
+      } else {
+        console.warn(`⚠️ No push token found for user ID: ${receiverId}`);
+      }
     } catch (error) {
       console.error("❌ Error saving message:", error);
     }
@@ -122,6 +131,29 @@ io.on("connection", (socket) => {
     console.log(`🔴 User disconnected: ${socket.id}`);
   });
 });
+
+// ✅ Function to send push notifications
+async function sendPushNotification(to, message) {
+  const notification = {
+    to, // Recipient's Expo Push Token
+    sound: "default",
+    title: "New Message!",
+    body: message,
+    data: { screen: "chat" },
+  };
+
+  await fetch("https://exp.host/--/api/v2/push/send", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Accept-Encoding": "gzip, deflate",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(notification),
+  });
+
+  console.log("📩 Notification sent to:", to);
+}
 
 server.listen(PORT, async () => {
   try {

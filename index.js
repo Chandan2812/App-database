@@ -109,37 +109,39 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log(`🟢 User connected: ${socket.id}`);
 
-  // Store the user's socket ID when they connect
-  socket.on("registerUser", (userId) => {
-    socket.join(userId); // Join a room with the userId
-    console.log(`👤 User ${userId} joined room: ${userId}`);
-  });
+  // ✅ Ensure only ONE listener is active per connection
+  socket.removeAllListeners("sendMessage");
 
   socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
-    console.log(`🔄 Message from ${senderId} to ${receiverId}:`, message);
-
-    if (!senderId || !receiverId || !message) {
-      console.warn("⚠️ Missing required fields, message not processed.");
-      return;
-    }
+    console.log(
+      `🔄 Event triggered: sendMessage for receiverId: ${receiverId}`
+    );
 
     try {
-      // Save message to database
-      const newMessage = await ChatModel.create({ senderId, receiverId, message });
+      const existingMessage = await ChatModel.findOne({
+        senderId,
+        receiverId,
+        message,
+      });
+
+      if (existingMessage) {
+        console.warn("⚠️ Duplicate message detected, skipping save.");
+        return;
+      }
+
+      const newMessage = new ChatModel({ senderId, receiverId, message });
+      await newMessage.save();
       console.log("✅ Message saved to database");
 
-      // Emit message only to the intended receiver's socket room
-      io.to(receiverId).emit("newMessage", newMessage);
-      console.log(`📩 Message delivered to ${receiverId}`);
+      io.emit("newMessage", newMessage);
 
-      // Send push notification if the receiver has a push token
-      const receiver = await UserModel.findById(receiverId).select("pushToken");
+      const receiver = await UserModel.findOne({ _id: receiverId });
+
       if (receiver?.pushToken) {
         await sendPushNotification(receiver.pushToken, message);
-        console.log("📲 Push notification sent.");
       }
     } catch (error) {
-      console.error("❌ Error processing sendMessage:", error);
+      console.error("❌ Error sending message:", error);
     }
   });
 
@@ -147,7 +149,6 @@ io.on("connection", (socket) => {
     console.log(`🔴 User disconnected: ${socket.id}`);
   });
 });
-
 
 // ✅ Function to send push notifications
 async function sendPushNotification(to, message) {

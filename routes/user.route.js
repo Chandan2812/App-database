@@ -456,26 +456,4 @@ userRouter.get("/userdata/:email", async (req, res) => {
   }
 });
 
-userRouter.post("/save-token", async (req, res) => {
-  const { email, pushToken } = req.body; // ✅ Use email instead of userId
-
-  try {
-    const user = await UserModel.findOneAndUpdate(
-      { email }, // ✅ Find user by email
-      { pushToken }, // Update push token
-      { new: true, upsert: false } // ✅ Do not create a new user if email is not found
-    );
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    console.log("✅ Push token saved for user:", user.email);
-    res.json({ success: true, message: "Push token saved successfully" });
-  } catch (error) {
-    console.error("❌ Error saving push token:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-});
-
 module.exports = { userRouter };

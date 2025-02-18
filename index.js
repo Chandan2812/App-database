@@ -133,8 +133,8 @@ io.on("connection", (socket) => {
       await newMessage.save();
       console.log("✅ Message saved to database");
 
-      io.emit("newMessage", newMessage);
-
+      // Broadcast only to the recipient, not back to the sender
+      socket.broadcast.emit("newMessage", message);
       const receiver = await UserModel.findOne({ _id: receiverId });
 
       if (receiver?.pushToken) {

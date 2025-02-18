@@ -106,49 +106,50 @@ const io = new Server(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  console.log(`🟢 User connected: ${socket.id}`);
+socket.on("sendMessage", async ({ senderId, receiverId, message }, callback) => {
+  console.log(`🔄 Event triggered: sendMessage for receiverId: ${receiverId}`);
 
-  // ✅ Ensure only ONE listener is active per connection
-  socket.removeAllListeners("sendMessage");
+  try {
+    // Check if a similar message was sent recently (within 5 seconds)
+    const fiveSecondsAgo = new Date(Date.now() - 5000);
+    const existingMessage = await ChatModel.findOne({
+      senderId,
+      receiverId,
+      message,
+      createdAt: { $gte: fiveSecondsAgo }, // Prevents duplicates in a short time
+    });
 
-  socket.on("sendMessage", async ({ senderId, receiverId, message }) => {
-    console.log(
-      `🔄 Event triggered: sendMessage for receiverId: ${receiverId}`
-    );
-
-    try {
-      const existingMessage = await ChatModel.findOne({
-        senderId,
-        receiverId,
-        message,
-      });
-
-      if (existingMessage) {
-        console.warn("⚠️ Duplicate message detected, skipping save.");
-        return;
-      }
-
-      const newMessage = new ChatModel({ senderId, receiverId, message });
-      await newMessage.save();
-      console.log("✅ Message saved to database");
-
-      io.emit("newMessage", newMessage);
-
-      const receiver = await UserModel.findOne({ _id: receiverId });
-
-      if (receiver?.pushToken) {
-        await sendPushNotification(receiver.pushToken, message);
-      }
-    } catch (error) {
-      console.error("❌ Error sending message:", error);
+    if (existingMessage) {
+      console.warn("⚠️ Duplicate message detected, skipping save.");
+      return;
     }
-  });
 
-  socket.on("disconnect", () => {
-    console.log(`🔴 User disconnected: ${socket.id}`);
-  });
+    // Save new message
+    const newMessage = new ChatModel({ senderId, receiverId, message });
+    await newMessage.save();
+    console.log("✅ Message saved to database");
+
+    // Emit event only after successful save
+    io.emit("newMessage", newMessage);
+
+    // Fetch receiver details
+    const receiver = await UserModel.findById(receiverId);
+
+    // Send notification only if pushToken exists
+    if (receiver?.pushToken) {
+      await sendPushNotification(receiver.pushToken, message);
+    }
+
+    // Callback acknowledgment (optional)
+    if (callback) callback({ success: true, message: "Message sent successfully" });
+
+  } catch (error) {
+    console.error("❌ Error sending message:", error);
+    if (callback) callback({ success: false, message: "Error sending message" });
+  }
 });
+
+
 
 // ✅ Function to send push notifications
 async function sendPushNotification(to, message) {
